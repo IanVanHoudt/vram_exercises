@@ -34,12 +34,11 @@ attr:	.long	0
 	.globl	cls
 cls:	pushl	%ebp
 		movl	%esp, %ebp
-		# Fill me in!
 	   	# reset all values to SPACE (char, ie byte 0)
 	    # then set to DEFAULT_ATTR  (attr/color, ie byte 1)
 		# byte 0 == character, byte 1 == attribute
 
-	    # example 
+	    # example of updating values of a video location/char
 	    #movl $video, %eax
 	    #movb $65,(%eax)
 	    #movb $60,1(%eax)
@@ -60,17 +59,17 @@ cls:	pushl	%ebp
 	    #.equ	INITWORD, (LOW<<8) | LOW
 	    #movl 	$INITWORD, %eax
 
-		movl $video, %edx
-    	movl $SCREENBYTES, %ecx
-loop: 	movl %eax, (%edx)
-    	addl $4, %edx
-    	subl $4, %ecx
-    	jnz loop
+		movl $video, %edx			# put start of vram in edx
+    	movl $SCREENBYTES, %ecx		# put max bytes in ecx
+loop: 	movl %eax, (%edx)			# put the value in edx
+    	addl $4, %edx				# move to next part of video array 
+    	subl $4, %ecx				# sub 4 from max bytes 
+    	jnz loop					# if max bytes > 0, keep looping
 
-    	movl $0, row
-    	movl $0, col
+    	movl $0, row				# return cursor to origin (0,0)
+    	movl $0, col	
 
-		movl	%ebp, %esp
+		movl	%ebp, %esp			# epilogue
 		popl	%ebp
 
 		ret
@@ -96,10 +95,12 @@ outc:	pushl	%ebp
 		# Fill me in!
         # arg  == 8(%ebp)
         movl $video, %edx	# put cursor in edx
-		movl 8(%ebp), %eax	# put arg (8 in from bp) into eax
-        movl %eax, (%edx)
+		#movl 8(%ebp), %eax	# put arg (8 in from bp) into eax
+        #movl %eax, (%edx)	# 'write' the arg
+
+
         #addl $4, %edx
-        addl $1, row
+        #addl $1, col
 
 		movl	%ebp, %esp
 		popl	%ebp
