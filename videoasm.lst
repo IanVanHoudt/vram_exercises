@@ -1,0 +1,149 @@
+   1              	
+   2              		.equ	ROWS, 		25		# number of rows
+   3              		.equ	COLS, 		80		# number of columns
+   4              	
+   5              		.equ	CHARBYTES,	2		# total #bytes per char
+   6              		.equ	ROWBYTES,	COLS*CHARBYTES	# total #bytes per row
+   7              		.equ	SCREENBYTES,	ROWS*ROWBYTES	# total #bytes per screen
+   8              	
+   9              		.equ	SPACE,		32		# blank space
+  10              		.equ	NEWLINE,	'\n'		# newline character
+  11              	
+  12              		.equ	DEFAULT_ATTR, 	0x2e		# PSU Green
+  13              	
+  14              		.data
+  15              	
+  16              	        # Reserve space for a video ram frame buffer with
+  17              	        # 25 rows; 80 columns; and one code and one attribute
+  18              	        # byte per character.
+  19              		.globl  video
+  20              		.align	4
+  21 0000 00000000 	video:	.space	SCREENBYTES
+  21      00000000 
+  21      00000000 
+  21      00000000 
+  21      00000000 
+  22              	
+  23              	        # Some variables to hold the current row, column, and
+  24              		# video attribute:
+  25              		.align	4
+  26 0fa0 00000000 	row:	.long	0		# we will only use the least significant
+  27 0fa4 00000000 	col:	.long	0		# bytes of these variables
+  28 0fa8 00000000 	attr:	.long	0
+  29              	
+  30              		.text
+  31              	
+  32              		# Clear the screen, setting all characters to SPACE
+  33              	        # using the DEFAULT_ATTR attribute.
+  34              		.globl	cls
+  35 0000 55       	cls:	pushl	%ebp
+  36 0001 89E5     			movl	%esp, %ebp
+  37              			# Fill me in!
+  38              		   	# reset all values to SPACE (char, ie byte 0)
+  39              		    # then set to DEFAULT_ATTR  (attr/color, ie byte 1)
+  40              			# byte 0 == character, byte 1 == attribute
+  41              	
+  42              		    # example 
+  43              		    #movl $video, %eax
+  44              		    #movb $65,(%eax)
+  45              		    #movb $60,1(%eax)
+  46              	
+  47              	   		# write 4 bytes at a time (more efficient)
+  48              		    # DEF CHAR DEF CHAR (backwards because of little endianess)
+  49 0003 B82E0000 		    movl $DEFAULT_ATTR, %eax	# set def attr in eax
+  49      00
+  50 0008 C1E008   		    shl $8, %eax				# shift left to make space
+  51 000b 83C820   		    orl $SPACE, %eax			# or in the SPACE
+  52 000e 89C1     		    movl %eax, %ecx				# copy into ecx
+  53 0010 C1E010   		    shl  $16, %eax				# shift even further
+  54              										# now eax has DEF CHAR 0 0 
+  55              										# and ecx has 0 0 DEF CHAR
+  56 0013 09C8     		    orl  %ecx, %eax				# or them together. 32 bits of value we want
+  57              	
+  58              		    # different approach to the above code:
+  59              			#.equ	LOW, 	(DEFAULT_ATTR<<8) | SPACE
+  60              		    #.equ	INITWORD, (LOW<<8) | LOW
+  61              		    #movl 	$INITWORD, %eax
+  62              	
+  63 0015 BA000000 			movl $video, %edx
+  63      00
+  64 001a B9A00F00 	    	movl $SCREENBYTES, %ecx
+  64      00
+  65 001f 8902     	loop: 	movl %eax, (%edx)
+  66 0021 83C204   	    	addl $4, %edx
+  67 0024 83E904   	    	subl $4, %ecx
+  68 0027 75F6     	    	jnz loop
+  69              	
+  70 0029 C705A00F 	    	movl $0, row
+  70      00000000 
+  70      0000
+  71 0033 C705A40F 	    	movl $0, col
+  71      00000000 
+  71      0000
+  72              	
+  73 003d 89EC     			movl	%ebp, %esp
+  74 003f 5D       			popl	%ebp
+  75              	
+  76 0040 C3       			ret
+  77              	
+  78              		# Set the video attribute for characters output using outc.
+  79              		.globl	setAttr
+  80 0041 55       	setAttr:pushl	%ebp
+  81 0042 89E5     		movl	%esp, %ebp
+  82              		# Fill me in!
+  83 0044 89EC     		movl	%ebp, %esp
+  84 0046 5D       		popl	%ebp
+  85 0047 C3       		ret
+  86              	
+  87              		# Output a single character at the current row and col position
+  88              		# on screen, advancing the cursor coordinates and scrolling the
+  89              		# screen as appropriate.  Special treatment is provided for
+  90              	    # NEWLINE characters, moving the "cursor" to the start of the
+  91              		# "next line".
+  92              		.globl	outc
+  93 0048 55       	outc:	pushl	%ebp
+  94 0049 89E5     			movl	%esp, %ebp
+  95              	
+  96              			# Fill me in!
+  97              	        # arg  == 8(%ebp)
+  98 004b BA000000 	        movl $video, %edx	# put cursor in edx
+  98      00
+  99 0050 8B4508   			movl 8(%ebp), %eax	# put arg (8 in from bp) into eax
+ 100 0053 8902     	        movl %eax, (%edx)
+ 101              	        #addl $4, %edx
+ 102 0055 8305A00F 	        addl $1, row
+ 102      000001
+ 103              	
+ 104 005c 89EC     			movl	%ebp, %esp
+ 105 005e 5D       			popl	%ebp
+ 106 005f C3       			ret
+ 107              	
+ 108              		# Output an unsigned numeric value as a sequence of 8 hex digits.
+ 109              		.globl	outhex
+ 110 0060 55       	outhex:	pushl	%ebp
+ 111 0061 89E5     		movl	%esp, %ebp
+ 112              		# Fill me in!
+ 113 0063 89EC     		movl	%ebp, %esp
+ 114 0065 5D       		popl	%ebp
+ 115 0066 C3       		ret
+ 116              	
+DEFINED SYMBOLS
+          videoasm.s:2      *ABS*:0000000000000019 ROWS
+          videoasm.s:3      *ABS*:0000000000000050 COLS
+          videoasm.s:5      *ABS*:0000000000000002 CHARBYTES
+          videoasm.s:6      *ABS*:00000000000000a0 ROWBYTES
+          videoasm.s:7      *ABS*:0000000000000fa0 SCREENBYTES
+          videoasm.s:9      *ABS*:0000000000000020 SPACE
+          videoasm.s:10     *ABS*:000000000000000a NEWLINE
+          videoasm.s:12     *ABS*:000000000000002e DEFAULT_ATTR
+          videoasm.s:21     .data:0000000000000000 video
+          videoasm.s:26     .data:0000000000000fa0 row
+          videoasm.s:27     .data:0000000000000fa4 col
+          videoasm.s:28     .data:0000000000000fa8 attr
+          videoasm.s:35     .text:0000000000000000 cls
+          videoasm.s:65     .text:000000000000001f loop
+          videoasm.s:80     .text:0000000000000041 setAttr
+          videoasm.s:93     .text:0000000000000048 outc
+          videoasm.s:110    .text:0000000000000060 outhex
+
+NO UNDEFINED SYMBOLS
