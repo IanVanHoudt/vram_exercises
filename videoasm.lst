@@ -10,7 +10,7 @@
   10              		.equ	NEWLINE,	'\n'		# newline character
   11              	
   12              		.equ	DEFAULT_ATTR, 	0x2e		# PSU Green
-  13              	
+  13              	    .equ    DEFAULT_WORD,   32
   14              		.data
   15              	
   16              	        # Reserve space for a video ram frame buffer with
@@ -31,102 +31,186 @@
   27 0fa4 00000000 	col:	.long	0		# bytes of these variables
   28 0fa8 00000000 	attr:	.long	0
   29              	
-  30              		.text
+  30              	    .text
   31              	
   32              		# Clear the screen, setting all characters to SPACE
   33              	        # using the DEFAULT_ATTR attribute.
-  34              		.globl	cls
-  35 0000 55       	cls:	pushl	%ebp
-  36 0001 89E5     			movl	%esp, %ebp
-  37              			# Fill me in!
-  38              		   	# reset all values to SPACE (char, ie byte 0)
-  39              		    # then set to DEFAULT_ATTR  (attr/color, ie byte 1)
-  40              			# byte 0 == character, byte 1 == attribute
-  41              	
-  42              		    # example 
-  43              		    #movl $video, %eax
-  44              		    #movb $65,(%eax)
-  45              		    #movb $60,1(%eax)
-  46              	
-  47              	   		# write 4 bytes at a time (more efficient)
-  48              		    # DEF CHAR DEF CHAR (backwards because of little endianess)
-  49 0003 B82E0000 		    movl $DEFAULT_ATTR, %eax	# set def attr in eax
-  49      00
-  50 0008 C1E008   		    shl $8, %eax				# shift left to make space
-  51 000b 83C820   		    orl $SPACE, %eax			# or in the SPACE
-  52 000e 89C1     		    movl %eax, %ecx				# copy into ecx
-  53 0010 C1E010   		    shl  $16, %eax				# shift even further
-  54              										# now eax has DEF CHAR 0 0 
-  55              										# and ecx has 0 0 DEF CHAR
-  56 0013 09C8     		    orl  %ecx, %eax				# or them together. 32 bits of value we want
-  57              	
-  58              		    # different approach to the above code:
-  59              			#.equ	LOW, 	(DEFAULT_ATTR<<8) | SPACE
-  60              		    #.equ	INITWORD, (LOW<<8) | LOW
-  61              		    #movl 	$INITWORD, %eax
-  62              	
-  63 0015 BA000000 			movl $video, %edx
+  34              	    .globl	cls
+  35 0000 55       	cls:    pushl	%ebp
+  36 0001 89E5     	        movl	%esp, %ebp
+  37              	       	# reset all values to SPACE (char, ie byte 0)
+  38              	        # then set to DEFAULT_ATTR  (attr/color, ie byte 1)
+  39              	    	# byte 0 == character, byte 1 == attribute
+  40              	
+  41              	        # example of updating values of a video location/char
+  42              	        #movl $video, %eax
+  43              	        #movb $65,(%eax)
+  44              	        #movb $60,1(%eax)
+  45              	
+  46              	        # write 4 bytes at a time (more efficient)
+  47              	        # DEF CHAR DEF CHAR (backwards because of little endianess)
+  48 0003 B82E0000 	        movl $DEFAULT_ATTR, %eax	# set def attr in eax
+  48      00
+  49 0008 C1E008   	        shl $8, %eax				# shift left to make space
+  50 000b 83C820   	        orl $SPACE, %eax			# or in the SPACE
+  51 000e 89C1     	        movl %eax, %ecx				# copy into ecx
+  52 0010 C1E010   	        shl  $16, %eax				# shift even further
+  53              										# now eax has DEF CHAR 0 0 
+  54              										# and ecx has 0 0 DEF CHAR
+  55 0013 09C8     	        orl  %ecx, %eax				# or them together. 32 bits of value we want
+  56              	
+  57              	        # different approach to the above code:
+  58              	        #.equ	LOW, 	(DEFAULT_ATTR<<8) | SPACE
+  59              	        #.equ	INITWORD, (LOW<<8) | LOW
+  60              	        #movl 	$INITWORD, %eax
+  61              	
+  62 0015 BA000000 	        movl $video, %edx			# put start of vram in edx
+  62      00
+  63 001a B9A00F00 	        movl $SCREENBYTES, %ecx		# put max bytes in ecx
   63      00
-  64 001a B9A00F00 	    	movl $SCREENBYTES, %ecx
-  64      00
-  65 001f 8902     	loop: 	movl %eax, (%edx)
-  66 0021 83C204   	    	addl $4, %edx
-  67 0024 83E904   	    	subl $4, %ecx
-  68 0027 75F6     	    	jnz loop
-  69              	
-  70 0029 C705A00F 	    	movl $0, row
+  64 001f 8902     	loop:   movl %eax, (%edx)			# put the value in edx
+  65 0021 83C204   	        addl $4, %edx				# move to next part of video array 
+  66 0024 83E904   	        subl $4, %ecx				# sub 4 from max bytes 
+  67 0027 75F6     	        jnz loop					# if max bytes > 0, keep looping
+  68              	
+  69 0029 C705A00F 	        movl $0, row				# return cursor to origin (0,0)
+  69      00000000 
+  69      0000
+  70 0033 C705A40F 	        movl $0, col	
   70      00000000 
   70      0000
-  71 0033 C705A40F 	    	movl $0, col
-  71      00000000 
-  71      0000
-  72              	
-  73 003d 89EC     			movl	%ebp, %esp
-  74 003f 5D       			popl	%ebp
+  71              	
+  72 003d 89EC     	        movl	%ebp, %esp			# epilogue
+  73 003f 5D       	        popl	%ebp
+  74 0040 C3       	        ret
   75              	
-  76 0040 C3       			ret
-  77              	
-  78              		# Set the video attribute for characters output using outc.
-  79              		.globl	setAttr
-  80 0041 55       	setAttr:pushl	%ebp
-  81 0042 89E5     		movl	%esp, %ebp
-  82              		# Fill me in!
-  83 0044 89EC     		movl	%ebp, %esp
-  84 0046 5D       		popl	%ebp
-  85 0047 C3       		ret
-  86              	
-  87              		# Output a single character at the current row and col position
-  88              		# on screen, advancing the cursor coordinates and scrolling the
-  89              		# screen as appropriate.  Special treatment is provided for
-  90              	    # NEWLINE characters, moving the "cursor" to the start of the
-  91              		# "next line".
-  92              		.globl	outc
-  93 0048 55       	outc:	pushl	%ebp
-  94 0049 89E5     			movl	%esp, %ebp
-  95              	
-  96              			# Fill me in!
-  97              	        # arg  == 8(%ebp)
-  98 004b BA000000 	        movl $video, %edx	# put cursor in edx
+  76              	    # Set the video attribute for characters output using outc.
+  77              	    .globl  setAttr
+  78              	
+  79 0041 8B442404 	setAttr:movl    4(%esp), %eax           # Read parameter, beyond return addr.
+  80 0045 A3A80F00 	        movl    %eax, attr              # And save in the attr global variable
+  80      00
+  81 004a C3       	        ret
+  82              	
+  83              	
+  84              	    # Output a single character at the current row and col position
+  85              	    # on screen, advancing the cursor coordinates and scrolling the
+  86              	    # screen as appropriate.  Special treatment is provided for
+  87              	    # NEWLINE characters, moving the "cursor" to the start of the
+  88              	    # "next line".
+  89              	    .globl  outc
+  90              	
+  91 004b 55       	outc:   pushl   %ebp            # Standard prologue
+  92 004c 89E5     	        movl    %esp, %ebp
+  93 004e 8B4508   	        movl    8(%ebp), %eax   # Get parameter (character to output)
+  94 0051 83F80A   	        cmpl    $NEWLINE, %eax  # Check for a newline
+  95 0054 7433     	        jz      outnl
+  96              	
+  97 0056 8A25A80F 	        movb    attr, %ah       # Add attribute byte to char code
+  97      0000
+  98 005c BA000000 	        movl    $video, %edx    # Find start of video buffer
   98      00
-  99 0050 8B4508   			movl 8(%ebp), %eax	# put arg (8 in from bp) into eax
- 100 0053 8902     	        movl %eax, (%edx)
- 101              	        #addl $4, %edx
- 102 0055 8305A00F 	        addl $1, row
- 102      000001
- 103              	
- 104 005c 89EC     			movl	%ebp, %esp
- 105 005e 5D       			popl	%ebp
- 106 005f C3       			ret
+  99 0061 8B0DA00F 	        movl    row, %ecx       # Find row number
+  99      0000
+ 100 0067 69C9A000 	        imull   $ROWBYTES, %ecx # Skip ROWBYTES for every row
+ 100      0000
+ 101 006d 01CA     	        addl    %ecx, %edx
+ 102 006f 8B0DA40F 	        movl    col, %ecx       # Skip two bytes for preceding column
+ 102      0000
+ 103 0075 8D144A   	        leal    (%edx,%ecx,2), %edx
+ 104 0078 668902   	        movw    %ax, (%edx)     # Save character and attribute
+ 105 007b 41       	        incl    %ecx            # Advance column ...
+ 106 007c 83F950   	        cmpl    $COLS, %ecx     # ... and check to see if we have reached
  107              	
- 108              		# Output an unsigned numeric value as a sequence of 8 hex digits.
- 109              		.globl	outhex
- 110 0060 55       	outhex:	pushl	%ebp
- 111 0061 89E5     		movl	%esp, %ebp
- 112              		# Fill me in!
- 113 0063 89EC     		movl	%ebp, %esp
- 114 0065 5D       		popl	%ebp
- 115 0066 C3       		ret
- 116              	
+ 108 007f 7D08     	        jnl     outnl           #     the right edge of the screen
+ 109 0081 890DA40F 	        movl    %ecx, col       # Save new column position
+ 109      0000
+ 110 0087 EB51     	        jmp     done
+ 111              	
+ 112              	        # Output a new line 
+ 113 0089 C705A40F 	outnl:  movl    $0, col         # Reset column
+ 113      00000000 
+ 113      0000
+ 114 0093 A1A00F00 	        movl    row, %eax       # Are we on the bottom row?
+ 114      00
+ 115 0098 83F818   	        cmpl    $(ROWS-1), %eax
+ 116 009b 7D08     	        jnl     scroll          # If so, then we need to scroll
+ 117 009d 40       	        incl    %eax            # Otherwise just increment row number
+ 118 009e A3A00F00 	        movl    %eax, row       # ... and save it 
+ 118      00
+ 119 00a3 EB35     	        jmp     done
+ 120              	
+ 121 00a5 56       	scroll: pushl   %esi            # esi and edi are callee saves registers
+ 122 00a6 57       	        pushl   %edi
+ 123              	
+ 124              	        # Overwrite the data in rows 0-23 with the contents of rows 1-24:
+ 125 00a7 BEA00000 	        movl    $ROWBYTES, %esi # Copy from second row ...
+ 125      00
+ 126 00ac BF000000 	        movl    $video, %edi    # ... to start of first row ... and so on
+ 126      00
+ 127 00b1 01FE     	        addl    %edi, %esi
+ 128 00b3 B9000F00 	        movl    $(SCREENBYTES - ROWBYTES), %ecx # Number of bytes to copy
+ 128      00
+ 129 00b8 8B06     	1:      movl    (%esi), %eax
+ 130 00ba 8907     	        movl    %eax, (%edi)
+ 131 00bc 83C704   	        addl    $4, %edi        # Advance source and destination pointers
+ 132 00bf 83C604   	        addl    $4, %esi
+ 133 00c2 83E904   	        subl    $4, %ecx        # Reduce number of bytes copied
+ 134 00c5 75F1     	        jnz     1b
+ 135              	
+ 136              	        # Clear the "newly revealed" row 24:
+ 137 00c7 B9280000 	        movl    $(ROWBYTES/4), %ecx
+ 137      00
+ 138              	
+ 139 00cc C7072000 	1:      movl    $DEFAULT_WORD, (%edi)
+ 139      0000
+ 140 00d2 83C704   	        addl    $4, %edi
+ 141 00d5 49       	        decl    %ecx
+ 142 00d6 75F4     	        jnz     1b
+ 143 00d8 5F       	        popl    %edi            # Restore callee saves
+ 144 00d9 5E       	        popl    %esi
+ 145              	
+ 146 00da 89EC     	done:   movl    %ebp, %esp      # Standard epilogue
+ 147 00dc 5D       	        popl    %ebp
+ 148 00dd C3       	        ret
+ 149              	
+ 150 00de 89EC     			movl	%ebp, %esp
+ 151 00e0 5D       			popl	%ebp
+ 152 00e1 C3       			ret
+ 153              	
+ 154              	    # Output an unsigned numeric value as a sequence of 8 hex digits.
+ 155              	    .globl  outhex
+ 156              	
+ 157 00e2 55       	outhex: pushl   %ebp            # Standard prolog
+ 158 00e3 89E5     	        movl    %esp, %ebp
+ 159 00e5 8B442408 	        movl    8(%esp), %eax   # Find the number to display
+ 160 00e9 B9080000 	        movl    $8, %ecx        # We want to display 8 nibbles in total
+ 160      00
+ 161              	
+ 162 00ee C1C004   	1:      rol     $4, %eax        # Rotate top nibble in to least sig. pos.
+ 163 00f1 89C2     	        movl    %eax, %edx      # Make a copy that we can modify
+ 164 00f3 83E20F   	        andl    $15, %edx       # Mask out the least significant nibble
+ 165 00f6 83FA0A   	        cmpl    $10, %edx       # And determine how digit should be displayed:
+ 166 00f9 7C05     	        jl      2f
+ 167 00fb 83C237   	        addl    $('A'-10), %edx # As a hex digit in the range A-F ...
+ 168 00fe EB03     	        jmp     3f
+ 169              	
+ 170 0100 83C230   	2:      addl    $'0', %edx      # Or as a decimal digit in the range 0-9 ...
+ 171              	
+ 172 0103 50       	3:      pushl   %eax            # Save caller saves registers ...
+ 173 0104 51       	        pushl   %ecx
+ 174 0105 52       	        pushl   %edx            # ... including the character to be output
+ 175 0106 E8FCFFFF 	        call    outc
+ 175      FF
+ 176 010b 5A       	        popl    %edx            # Restore save registers
+ 177 010c 59       	        popl    %ecx
+ 178 010d 58       	        popl    %eax
+ 179 010e 49       	        decl    %ecx            # And loop until we're done
+ 180 010f 75DD     	        jnz     1b
+ 181              	
+ 182 0111 89EC     	        movl    %ebp, %esp      # Standard epilogue
+ 183 0113 5D       	        popl    %ebp
+ 184 0114 C3       	        ret
 DEFINED SYMBOLS
           videoasm.s:2      *ABS*:0000000000000019 ROWS
           videoasm.s:3      *ABS*:0000000000000050 COLS
@@ -136,14 +220,18 @@ DEFINED SYMBOLS
           videoasm.s:9      *ABS*:0000000000000020 SPACE
           videoasm.s:10     *ABS*:000000000000000a NEWLINE
           videoasm.s:12     *ABS*:000000000000002e DEFAULT_ATTR
+          videoasm.s:13     *ABS*:0000000000000020 DEFAULT_WORD
           videoasm.s:21     .data:0000000000000000 video
           videoasm.s:26     .data:0000000000000fa0 row
           videoasm.s:27     .data:0000000000000fa4 col
           videoasm.s:28     .data:0000000000000fa8 attr
           videoasm.s:35     .text:0000000000000000 cls
-          videoasm.s:65     .text:000000000000001f loop
-          videoasm.s:80     .text:0000000000000041 setAttr
-          videoasm.s:93     .text:0000000000000048 outc
-          videoasm.s:110    .text:0000000000000060 outhex
+          videoasm.s:64     .text:000000000000001f loop
+          videoasm.s:79     .text:0000000000000041 setAttr
+          videoasm.s:91     .text:000000000000004b outc
+          videoasm.s:113    .text:0000000000000089 outnl
+          videoasm.s:146    .text:00000000000000da done
+          videoasm.s:121    .text:00000000000000a5 scroll
+          videoasm.s:157    .text:00000000000000e2 outhex
 
 NO UNDEFINED SYMBOLS
